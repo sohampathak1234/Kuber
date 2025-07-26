@@ -4,10 +4,14 @@ from groq import Groq
 
 # ========== Load .env ==========
 load_dotenv("own_agents/creds.env")
+
 api_key = os.getenv("GROQ_API_KEY")
+model_name = os.getenv("model_name")
 
 if not api_key:
-    raise ValueError("Missing GROQ_API_KEY in .env file")
+    raise ValueError("❌ Missing GROQ_API_KEY in .env file")
+if not model_name:
+    raise ValueError("❌ Missing model_name in .env file")
 
 # ========== Initialize Groq Client ==========
 client = Groq(api_key=api_key)
@@ -41,16 +45,20 @@ def get_financial_insights(name, age, income, expenses, loans, savings, investme
         investments=investments,
     )
 
-    chat_completion = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=[
-            {"role": "system", "content": "You are a helpful and realistic financial advisor."},
-            {"role": "user", "content": prompt}
-        ]
-    )
+    try:
+        chat_completion = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "You are a helpful and realistic financial advisor."},
+                {"role": "user", "content": prompt}
+            ]
+        )
 
-    print("📊 Financial Insights:\n")
-    print(chat_completion.choices[0].message.content)
+        print("\n📊 Financial Insights:\n")
+        print(chat_completion.choices[0].message.content)
+
+    except Exception as e:
+        print(f"❌ Error during completion: {e}")
 
 # ========== Example Usage ==========
 if __name__ == "__main__":
