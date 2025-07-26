@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 from dotenv import load_dotenv
 from groq import Groq
 
+
 # ========== Load Environment Variables ==========
 load_dotenv("own_agents/creds.env")
 
@@ -15,8 +16,10 @@ if not API_KEY:
 if not MODEL_NAME:
     raise EnvironmentError("❌ 'model_name' not found in .env file.")
 
+
 # ========== Initialize Groq Client ==========
 client = Groq(api_key=API_KEY)
+
 
 # ========== Fetch Mutual Fund List ==========
 def fetch_top_mutual_funds(count: int = 15) -> List[Dict[str, Any]]:
@@ -29,18 +32,24 @@ def fetch_top_mutual_funds(count: int = 15) -> List[Dict[str, Any]]:
         response.raise_for_status()
         all_funds = response.json()
 
-        # Filter top equity funds
+        if not isinstance(all_funds, list):
+            print("⚠️ Unexpected fund list format.")
+            return []
+
         equity_funds = [
-            fund for fund in all_funds if "Equity" in fund.get("schemeName", "")
+            fund for fund in all_funds
+            if isinstance(fund, dict) and "Equity" in fund.get("schemeName", "")
         ]
+
         return equity_funds[:count]
 
     except requests.RequestException as e:
-        print(f"❌ Network/API error: {e}")
+        print(f"❌ Network/API error while fetching funds: {e}")
         return []
     except Exception as e:
         print(f"❌ Unexpected error while fetching funds: {e}")
         return []
+
 
 # ========== Prompt Builder ==========
 def build_prompt(user_data: Dict[str, Any], funds_info: List[Dict[str, Any]]) -> str:
@@ -52,7 +61,7 @@ def build_prompt(user_data: Dict[str, Any], funds_info: List[Dict[str, Any]]) ->
     )
 
     fund_list = "\n".join(
-        f"- {fund.get('schemeName')}" for fund in funds_info
+        f"- {fund.get('schemeName')}" for fund in funds_info if fund.get("schemeName")
     )
 
     return f"""
@@ -74,13 +83,17 @@ Available Mutual Funds:
 {fund_list}
 
 Please suggest the 5 best SIP options with detailed reasoning.
-"""
+""".strip()
+
 
 # ========== Core SIP Advisor ==========
 def recommend_sip_plans(user_data: Dict[str, Any]) -> str:
     """
     Generates SIP recommendations using Groq model based on user profile.
     """
+    if not isinstance(user_data, dict) or not user_data:
+        return "❌ Invalid or missing user profile data."
+
     mutual_funds = fetch_top_mutual_funds()
 
     if not mutual_funds:
@@ -96,12 +109,15 @@ def recommend_sip_plans(user_data: Dict[str, Any]) -> str:
                 {"role": "user", "content": prompt}
             ]
         )
-        return completion.choices[0].message.content.strip()
+
+        content = completion.choices[0].message.content.strip() if completion.choices else None
+        return content or "⚠️ Model returned no content."
 
     except Exception as e:
         return f"❌ Error generating SIP plan: {str(e)}"
 
 
+# ========== Example Test ==========
 if __name__ == "__main__":
     user_profile = {
         "name": "Nikhil Sharma",
