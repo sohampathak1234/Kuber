@@ -9,3 +9,8 @@ __pycache__/
 creds.env
 
 play
+
+# Ignore Gmail credentials
+credentials.json
+
+own_agents/token.json
