@@ -5,3 +5,7 @@
 .env
 
 __pycache__/
+
+creds.env
+
+play
