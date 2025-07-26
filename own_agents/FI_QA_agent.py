@@ -1,24 +1,26 @@
 import os
 from dotenv import load_dotenv
-from groq import Groq
+import google.generativeai as genai
 
 class FactualAgent:
     """
-    A robust, factual financial Q&A agent using Groq API + local knowledge base + dynamic context.
+    A robust, factual financial Q&A agent using Gemini API + local knowledge base + dynamic context.
     """
 
     def __init__(self, env_path="own_agents/creds.env", kb_path=None):
         load_dotenv(env_path)
 
-        self.api_key = os.getenv("fi_qa_api")
-        self.model_name = os.getenv("model_name")
+        self.api_key = os.getenv("FI_QA_gem_api")
+        self.model_name = os.getenv("gem_model_name")
 
         if not self.api_key:
-            raise EnvironmentError("❌ Missing 'fi_qa_api' in environment variables.")
+            raise EnvironmentError("❌ Missing 'FI_QA_gem_api' in environment variables.")
         if not self.model_name:
-            raise EnvironmentError("❌ Missing 'model_name' in environment variables.")
+            raise EnvironmentError("❌ Missing 'gem_model_name' in environment variables.")
 
-        self.client = Groq(api_key=self.api_key)
+        genai.configure(api_key=self.api_key)
+        self.model = genai.GenerativeModel(model_name=self.model_name)
+
         self.kb_path = kb_path
         self.knowledge_base = self._load_knowledge(kb_path) if kb_path else ""
 
@@ -57,10 +59,10 @@ You are a highly factual Q&A AI agent for finance-related queries.
 You have access to the following verified knowledge base:
 
 Knowledge Base:
-\"\"\"{self.knowledge_base.strip()}\"\"\"
+\"\"\"{self.knowledge_base.strip()}\"\"\"  
 
 Additional Context:
-\"\"\"{context_text.strip()}\"\"\"
+\"\"\"{context_text.strip()}\"\"\"  
 
 User has asked:
 \"{user_input}\"
@@ -86,24 +88,18 @@ Respond strictly based on the knowledge base and real, factual internet-based in
         prompt = self._build_prompt(user_input, context=kwargs)
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "system", "content": "You are a strict factual financial Q&A assistant. No hallucinations allowed."},
-                    {"role": "user", "content": prompt}
-                ]
-            )
-            return response.choices[0].message.content.strip()
+            response = self.model.generate_content(prompt)
+            return response.text.strip()
         except Exception as e:
-            return f"❌ Error from model: {e}"
+            return f"❌ Error from Gemini model: {e}"
 
-# To use the agent
+# ========== Example Usage ==========
 
-# from factual_agent import FactualAgent
+# from fi_qa_agent_gemini import FactualAgent
 # if __name__ == "__main__":
 #     agent = FactualAgent(kb_path="data/FI_money_data.txt")
 
-#     question = "Which mutual fund is good for SIP in 2025?"
+#     question = "Tell me in short about FI money and its features."
 #     context = {
 #         "risk_profile": "moderate",
 #         "investment_horizon": "5 years",

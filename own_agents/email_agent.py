@@ -91,7 +91,7 @@ def fetch_latest_unread_email(service) -> Optional[Dict[str, str]]:
 
         messages = results.get('messages', [])
         if not messages:
-            print("📭 No unread emails found.")
+            print("No unread emails found.")
             return None
 
         msg_id = messages[0]['id']
@@ -112,9 +112,9 @@ def fetch_latest_unread_email(service) -> Optional[Dict[str, str]]:
         return {'subject': subject, 'body': body}
 
     except HttpError as e:
-        print(f"❌ Gmail API error: {e}")
+        print(f"Gmail API error: {e}")
     except Exception as e:
-        print(f"❌ Failed to fetch email: {e}")
+        print(f"Failed to fetch email: {e}")
     return None
 
 
@@ -132,6 +132,6 @@ def get_latest_unread_email() -> Optional[Dict[str, str]]:
 if __name__ == '__main__':
     email_data = get_latest_unread_email()
     if email_data:
-        print(f"\n📧 Subject: {email_data['subject']}\n\n📩 Body:\n{email_data['body']}")
+        print(f"\nSubject: {email_data['subject']}\n\n📩 Body:\n{email_data['body']}")
     else:
-        print("📭 No unread emails found or an error occurred.")
+        print(" No unread emails found or an error occurred.")

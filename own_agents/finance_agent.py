@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from groq import Groq
+import google.generativeai as genai
 from typing import Dict, Tuple
 
 
@@ -15,28 +15,30 @@ def load_credentials(env_path: str = "own_agents/creds.env") -> Tuple[str, str]:
         ValueError if required environment variables are missing.
     """
     load_dotenv(env_path, override=False)
-    api_key = os.getenv("GROQ_API_KEY")
-    model_name = os.getenv("model_name")
+    api_key = os.getenv("finance_gem_api")
+    model_name = os.getenv("gem_model_name")
 
     if not api_key:
-        raise ValueError("❌ Missing GROQ_API_KEY in .env file")
+        raise ValueError("❌ Missing 'finance_gem_api' in .env file.")
     if not model_name:
-        raise ValueError("❌ Missing model_name in .env file")
+        raise ValueError("❌ Missing 'gem_model_name' in .env file.")
 
     return api_key, model_name
 
 
-# ========== Initialize Client ==========
-def get_groq_client(api_key: str) -> Groq:
+# ========== Initialize Gemini Client ==========
+def get_gemini_model(api_key: str, model_name: str):
     """
-    Initialize and return a Groq client.
+    Initializes the Gemini model client.
 
     Args:
-        api_key: Your Groq API key.
+        api_key: Google Generative AI API Key.
+        model_name: Name of the Gemini model.
     Returns:
-        An initialized Groq client instance.
+        A generative model instance.
     """
-    return Groq(api_key=api_key)
+    genai.configure(api_key=api_key)
+    return genai.GenerativeModel(model_name)
 
 
 # ========== Build Prompt Dynamically ==========
@@ -48,8 +50,6 @@ def build_insight_prompt(user_data: Dict[str, any]) -> str:
         user_data: A dictionary of user financial information.
     Returns:
         A formatted prompt string for the model.
-    Raises:
-        ValueError if user_data is not a dictionary.
     """
     if not isinstance(user_data, dict):
         raise ValueError("❌ user_data must be a dictionary.")
@@ -76,18 +76,12 @@ def get_financial_insight(data: Dict[str, any], env_path: str = "own_agents/cred
     """
     try:
         api_key, model_name = load_credentials(env_path)
-        client = get_groq_client(api_key)
+        model = get_gemini_model(api_key, model_name)
         prompt = build_insight_prompt(data)
 
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": "You are a helpful and realistic financial advisor."},
-                {"role": "user", "content": prompt}
-            ]
-        )
+        response = model.generate_content(prompt)
 
-        return response.choices[0].message.content.strip() if response.choices else "⚠️ No response from the model."
+        return response.text.strip() if response.text else "⚠️ No response from the model."
 
     except Exception as e:
         return f"❌ Error: {e}"

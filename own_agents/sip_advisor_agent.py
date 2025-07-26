@@ -2,23 +2,23 @@ import os
 import requests
 from typing import List, Dict, Any
 from dotenv import load_dotenv
-from groq import Groq
+import google.generativeai as genai
 
 
 # ========== Load Environment Variables ==========
 load_dotenv("own_agents/creds.env")
 
-API_KEY = os.getenv("sip_advisor_api")
-MODEL_NAME = os.getenv("model_name")
+API_KEY = os.getenv("sip_advisor_gemini_api")
+MODEL_NAME = os.getenv("gem_model_name")
 
 if not API_KEY:
-    raise EnvironmentError("❌ 'sip_advisor_api' not found in .env file.")
+    raise EnvironmentError(" 'sip_advisor_gemini_api' not found in .env file.")
 if not MODEL_NAME:
-    raise EnvironmentError("❌ 'model_name' not found in .env file.")
+    raise EnvironmentError(" 'gem_model_name' not found in .env file.")
 
-
-# ========== Initialize Groq Client ==========
-client = Groq(api_key=API_KEY)
+# ========== Initialize Gemini ==========
+genai.configure(api_key=API_KEY)
+model = genai.GenerativeModel(MODEL_NAME)
 
 
 # ========== Fetch Mutual Fund List ==========
@@ -33,7 +33,7 @@ def fetch_top_mutual_funds(count: int = 15) -> List[Dict[str, Any]]:
         all_funds = response.json()
 
         if not isinstance(all_funds, list):
-            print("⚠️ Unexpected fund list format.")
+            print(" Unexpected fund list format.")
             return []
 
         equity_funds = [
@@ -44,10 +44,10 @@ def fetch_top_mutual_funds(count: int = 15) -> List[Dict[str, Any]]:
         return equity_funds[:count]
 
     except requests.RequestException as e:
-        print(f"❌ Network/API error while fetching funds: {e}")
+        print(f" Network/API error while fetching funds: {e}")
         return []
     except Exception as e:
-        print(f"❌ Unexpected error while fetching funds: {e}")
+        print(f" Unexpected error while fetching funds: {e}")
         return []
 
 
@@ -89,29 +89,21 @@ Please suggest the 5 best SIP options with detailed reasoning.
 # ========== Core SIP Advisor ==========
 def recommend_sip_plans(user_data: Dict[str, Any]) -> str:
     """
-    Generates SIP recommendations using Groq model based on user profile.
+    Generates SIP recommendations using Gemini based on user profile.
     """
     if not isinstance(user_data, dict) or not user_data:
-        return "❌ Invalid or missing user profile data."
+        return " Invalid or missing user profile data."
 
     mutual_funds = fetch_top_mutual_funds()
 
     if not mutual_funds:
-        return "⚠️ Unable to fetch mutual fund data. Please try again later."
+        return " Unable to fetch mutual fund data. Please try again later."
 
     prompt = build_prompt(user_data, mutual_funds)
 
     try:
-        completion = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": "You are an expert SIP advisor."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-
-        content = completion.choices[0].message.content.strip() if completion.choices else None
-        return content or "⚠️ Model returned no content."
+        response = model.generate_content(prompt)
+        return response.text.strip() if response.text else "⚠️ Model returned no content."
 
     except Exception as e:
         return f"❌ Error generating SIP plan: {str(e)}"
@@ -132,5 +124,5 @@ if __name__ == "__main__":
     }
 
     result = recommend_sip_plans(user_profile)
-    print("\n📈 SIP Plan Suggestions:\n")
+    print("\n SIP Plan Suggestions:\n")
     print(result)
