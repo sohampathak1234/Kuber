@@ -1,0 +1,35 @@
+name: finance_agent
+version: 0.1.0
+description: Agent to extract invoice insights from email and PDF
+inputs:
+  - name: email_subject
+    type: string
+  - name: email_body
+    type: string
+  - name: email_category
+    type: string
+  - name: email_pdf_text
+    type: string
+
+steps:
+  - type: llm
+    id: extract_fields
+    name: Extract Key Fields
+    prompt: |
+      You are an expert at reading financial data from emails and PDFs.
+      Extract key invoice-related fields from the input:
+
+      ---
+      Subject: {{email_subject}}
+      Body: {{email_body}}
+      PDF Content: {{email_pdf_text}}
+      ---
+
+      Output fields:
+      - Invoice Number
+      - Invoice Date
+      - Amount
+      - Vendor
+
+outputs:
+  - from_step: extract_fields
