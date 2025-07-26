@@ -1,20 +1,21 @@
 import os
+import json
 import base64
 from typing import Optional, Dict
 from email import message_from_bytes
 from email.message import Message
-
 from dotenv import load_dotenv
+
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-# ========== LOAD ENV ==========
-load_dotenv("own_agents/creds.env")  
 
-# ========== CONFIGURATION ==========
+# ========== ENV & CONFIG ==========
+load_dotenv("own_agents/creds.env")
+
 SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
 TOKEN_FILE = 'own_agents/token.json'
 
@@ -25,10 +26,10 @@ if not CLIENT_ID or not CLIENT_SECRET:
     raise EnvironmentError("❌ GMAIL_CLIENT_ID or GMAIL_CLIENT_SECRET not found in .env file.")
 
 
-# ========== AUTHENTICATION ==========
+# ========== AUTH ==========
 
 def authenticate_gmail() -> Optional[object]:
-    """Authenticate Gmail API using client ID/secret from environment."""
+    """Authenticate and return Gmail API service."""
     try:
         creds = None
         if os.path.exists(TOKEN_FILE):
@@ -56,28 +57,35 @@ def authenticate_gmail() -> Optional[object]:
 
         return build('gmail', 'v1', credentials=creds)
 
-    except Exception as e:
-        print(f"❌ Gmail authentication failed: {e}")
+    except Exception:
         return None
 
 
 # ========== EMAIL UTILITIES ==========
 
 def extract_plain_text_body(msg: Message) -> str:
-    """Extract plain text from MIME message."""
+    """Extracts plain text from MIME message."""
     if msg.is_multipart():
         for part in msg.walk():
             if part.get_content_type() == 'text/plain' and not part.get_filename():
                 try:
-                    return part.get_payload(decode=True).decode()
+                    return part.get_payload(decode=True).decode(errors="ignore")
                 except Exception:
                     continue
     else:
         try:
-            return msg.get_payload(decode=True).decode()
+            return msg.get_payload(decode=True).decode(errors="ignore")
         except Exception:
             return ''
     return ''
+
+
+def extract_sender_email(msg: Message) -> str:
+    """Extract sender's email address from the MIME message."""
+    from_header = msg.get("From", "")
+    if "<" in from_header and ">" in from_header:
+        return from_header.split("<")[1].split(">")[0].strip()
+    return from_header.strip()
 
 
 def fetch_latest_unread_email(service) -> Optional[Dict[str, str]]:
@@ -91,7 +99,6 @@ def fetch_latest_unread_email(service) -> Optional[Dict[str, str]]:
 
         messages = results.get('messages', [])
         if not messages:
-            print("No unread emails found.")
             return None
 
         msg_id = messages[0]['id']
@@ -101,6 +108,7 @@ def fetch_latest_unread_email(service) -> Optional[Dict[str, str]]:
 
         subject = mime_msg.get('Subject', '(No Subject)')
         body = extract_plain_text_body(mime_msg)
+        sender_email = extract_sender_email(mime_msg)
 
         # Mark as read
         service.users().messages().modify(
@@ -109,29 +117,41 @@ def fetch_latest_unread_email(service) -> Optional[Dict[str, str]]:
             body={'removeLabelIds': ['UNREAD']}
         ).execute()
 
-        return {'subject': subject, 'body': body}
+        return {
+            'subject': subject.strip(),
+            'body': body.strip(),
+            'email': sender_email
+        }
 
-    except HttpError as e:
-        print(f"Gmail API error: {e}")
-    except Exception as e:
-        print(f"Failed to fetch email: {e}")
-    return None
+    except (HttpError, Exception):
+        return None
 
 
-# ========== ENTRY FUNCTION ==========
+# ========== MAIN FUNCTION ==========
 
 def get_latest_unread_email() -> Optional[Dict[str, str]]:
-    """Main reusable function to fetch and return unread email."""
+    """Returns the latest unread email with subject, body, and sender email."""
     service = authenticate_gmail()
     if not service:
         return None
-    return fetch_latest_unread_email(service)
+    email_data = fetch_latest_unread_email(service)
 
-
-# ========== LOCAL TEST ==========
-if __name__ == '__main__':
-    email_data = get_latest_unread_email()
     if email_data:
-        print(f"\nSubject: {email_data['subject']}\n\n📩 Body:\n{email_data['body']}")
-    else:
-        print(" No unread emails found or an error occurred.")
+        try:
+            with open('temp_email.json', 'w', encoding='utf-8') as f:
+                json.dump(email_data, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"❌ Failed to write email data to file: {e}")
+
+    return email_data
+
+# ========== Example Use ==========
+# if __name__ == "__main__":
+#     email_info = get_latest_unread_email()
+#     if email_info:
+#         print("📧 Latest Unread Email:")
+#         print(f"Subject: {email_info['subject']}")
+#         print(f"From: {email_info['email']}")
+#         print(f"Body: {email_info['body'][:]}")  
+#     else:
+#         print("No unread emails found or authentication failed.")
