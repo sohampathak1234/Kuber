@@ -2,4 +2,6 @@
 /.venv
 
 # Environment Variables
-/.env
+.env
+
+__pycache__/
