@@ -5,43 +5,37 @@ import json
 url = "http://localhost:8080/mcp/stream"
 session_id = "mcp-session-594e48ea-fea1-40ef-8c52-7552dd9272af"
 
-# ========= Tool List with Keywords =========
-tool_keywords = {
-    "fetch_net_worth": ["net worth", "total assets", "portfolio", "wealth"],
-    "fetch_credit_report": ["credit score", "credit report", "cibil", "loans", "credit card"],
-    "fetch_epf_details": ["epf", "provident fund", "pf balance"],
-    "fetch_mf_transactions": ["mutual fund", "mf", "sip", "investment"],
-    "fetch_bank_transactions": ["bank statement", "transactions", "account history"],
-    "fetch_stock_transactions": ["stock", "shares", "nifty", "indian stock"]
+# ========= Category to Tool Mapping =========
+category_tools = {
+    "finance": ["fetch_net_worth", "fetch_credit_report", "fetch_bank_transactions"],
+    "fiqa": [],
+    "goal plan": ["fetch_bank_transactions", "fetch_mf_transactions", "fetch_stock_transactions"],
+    "sip": ["fetch_net_worth", "fetch_mf_transactions"],
+    "trader": ["fetch_net_worth", "fetch_stock_transactions"]
 }
 
-# ========= Ask for User Query =========
-user_input = input("🧠 What financial data do you want to fetch? ").lower()
+# ========= Ask for Category =========
+category = input("🧠 Enter category (finance, fiqa, goal plan, sip, trader): ").strip().lower()
 
-# ========= Match Tool Based on Input =========
-matched_tool = None
-for tool, keywords in tool_keywords.items():
-    if any(keyword in user_input for keyword in keywords):
-        matched_tool = tool
-        break
-
-if matched_tool:
-    payload = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "tools/call",
-        "params": {
-            "name": matched_tool,
-            "arguments": {}
+if category in category_tools:
+    tools_to_call = category_tools[category]
+    if not tools_to_call:
+        print(f"No tools mapped for category '{category}'.")
+    for tool in tools_to_call:
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": tool,
+                "arguments": {}
+            }
         }
-    }
-
-    headers = {
-        "Content-Type": "application/json",
-        "Mcp-Session-Id": session_id
-    }
-
-    response = requests.post(url, headers=headers, data=json.dumps(payload))
-    print("✅ Response:\n", json.dumps(response.json(), indent=2))
+        headers = {
+            "Content-Type": "application/json",
+            "Mcp-Session-Id": session_id
+        }
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        print(f"\n✅ {tool} Response:\n", json.dumps(response.json(), indent=2))
 else:
-    print("❌ Sorry, couldn't understand what tool to call based on your input.")
+    print(" Unknown category. Please choose from: finance, fiqa, goal plan, sip, trader.")
