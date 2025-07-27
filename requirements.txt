@@ -1,3 +1,8 @@
 google-adk
 dotenv
 pydantic
+requests
+groq
+google-generativeai
+litellm
+kiteconnect
