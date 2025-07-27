@@ -4,7 +4,6 @@ from typing import Dict, Any
 from dotenv import load_dotenv
 from groq import Groq
 
-
 # ========== Load Environment ==========
 load_dotenv("own_agents/creds.env")
 
@@ -92,17 +91,17 @@ def categorize_email(subject: str, body: str) -> Dict[str, Any]:
 
 
 # ========== Example Test ==========
-if __name__ == "__main__":
-    subject = "Looking for investment options for my child's future"
-    body = """
-Hi Team,
+# if __name__ == "__main__":
+#     subject = "Looking for investment options for my child's future"
+#     body = """
+# Hi Team,
 
-I'm exploring investment avenues to save for my child's higher education. I heard about SIPs but I need expert advice on how to proceed and what funds would be best suited.
+# I'm exploring investment avenues to save for my child's higher education. I heard about SIPs but I need expert advice on how to proceed and what funds would be best suited.
 
-Regards,
-Nikhil Sharma
-Phone: 9876543210
-"""
+# Regards,
+# Nikhil Sharma
+# Phone: 9876543210
+# """
 
-    result = categorize_email(subject, body)
-    print(result)
+#     result = categorize_email(subject, body)
+#     print(result)
